@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tracer</title>
+    <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://fastly.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#uploadForm').submit(function(e) {
+                e.preventDefault(); // Prevent the default form submission
+                $('input[type="submit"]').attr('disabled', true).val('Processing...');
+
+                const imageFile = document.querySelector('input[type="file"]').files[0];
+                const clusterValue = document.getElementById("clusterValue").value;
+
+                if (!imageFile) {
+                    alert("Please select an image file.");
+                    $('input[type="submit"]').attr('disabled', false).val('Upload');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageData = e.target.result;
+                    uploadImageToServer(imageData, clusterValue);
+                };
+                reader.readAsDataURL(imageFile);
+            });
+        });
+
+        function uploadImageToServer(imageData, clusterValue) {
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+            socket.emit('image-upload', {image: imageData.split(',')[1], clusterOption: clusterValue});
+        }
+
+        function updateClusterValue(value) {
+            document.getElementById("clusterValue").value = value;
+        }
+    </script>
+</head>
+<body>
+    <h1>Upload Image for Processing</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="image">
+        <input type="submit" value="Upload">
+        <!-- Hidden input field to store the value of 'clusterOption' -->
+        <input type="hidden" id="clusterValue" name="clusterValue" value="Normal">
+        <br>
+        Reference lines:
+        <label>
+            <input type="radio" name="clusterOption" value="Light" onclick="updateClusterValue('Light')"> Light
+        </label>
+        <label>
+            <input type="radio" name="clusterOption" value="Normal" onclick="updateClusterValue('Normal')" checked> Normal
+        </label>
+        <label>
+            <input type="radio" name="clusterOption" value="Heavy" onclick="updateClusterValue('Heavy')"> Heavy
+        </label>
+        <label>
+            <input type="radio" name="clusterOption" value="Unhinged" onclick="updateClusterValue('Unhinged')"> Unhinged
+        </label>
+    </form>
+
+    <!-- Placeholder for showing the uploaded and processed images -->
+    <div id="imageDisplay"></div>
+
+    <script>
+        $(document).ready(function() {
+    var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+    // Existing code for form submission and image uploading...
+
+    // Listen for the 'image-processed' event from the server
+    socket.on('image-processed', function(data) {
+        console.log('Image processed:', data);
+        // Assuming the server sends back URLs or paths for the original and processed images
+        // Update the DOM to display the images
+        $('#imageDisplay').html(`
+            <h2>Uploaded Image:</h2>
+            <img src="${data.original}" alt="Uploaded Image" width="400" height="300">
+            <h2>Processed Image:</h2>
+            <img src="${data.processed}" alt="Processed Image" width="400" height="300">
+        `);
+        $('input[type="submit"]').attr('disabled', false).val('Upload');
+    });
+
+    // Listen for any errors reported by the server
+    socket.on('error', function(error) {
+        console.log('Error:', error.message);
+        alert('Error processing image: ' + error.message);
+        $('input[type="submit"]').attr('disabled', false).val('Upload');
+    });
+});
+
+    </script>
+</body>
+</html>
